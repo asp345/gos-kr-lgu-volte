@@ -52,6 +52,10 @@ jobs:
     if: needs.check.outputs.exists == 'false'
     runs-on: ubuntu-24.04
     environment: release
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     env:
       VERSION: ${{ needs.check.outputs.version }}
     steps:
@@ -97,10 +101,16 @@ jobs:
           scripts/patch-ota.sh "$RUNNER_TEMP/input.zip" "$RUNNER_TEMP/$DEVICE-ota_update-$VERSION.zip" "$RUNNER_TEMP/work"
           rm -rf "$RUNNER_TEMP/keys" "$RUNNER_TEMP/input.zip"
 
+      - uses: actions/attest@v4
+        with:
+          subject-path: ${{ runner.temp }}/${{ env.DEVICE }}-ota_update-${{ env.VERSION }}.zip
+
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$VERSION" "$RUNNER_TEMP/$DEVICE-ota_update-$VERSION.zip" \
             --title "$DEVICE $VERSION" \
-            --notes "GrapheneOS $VERSION for $DEVICE with the LG U+ VoLTE patch, without Updater, re-signed with custom AVB and OTA keys."
+            --notes "GrapheneOS $VERSION for $DEVICE with the LG U+ VoLTE patch, without Updater, re-signed with custom AVB and OTA keys.
+
+          Verify provenance: \`gh attestation verify $DEVICE-ota_update-$VERSION.zip -R $GITHUB_REPOSITORY\`"
