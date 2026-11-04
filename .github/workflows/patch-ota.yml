@@ -1,0 +1,106 @@
+name: Patch OTA
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: GrapheneOS build number (empty for the latest build in CHANNEL)
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patch-ota
+
+env:
+  DEVICE: shiba
+  CHANNEL: alpha
+  EXPECTED_AVB_KEY_SHA256: cd7479653aa88208f9f03034810ef9b7b0af8a9d41e2000e458ac403a2acb233
+  AVBROOT_VERSION: 3.37.1
+  AVBROOT_SHA256: ca8e1e02bc33f5569d5228f312ce1351d0244fecd2d2163cb5a3c1a283a6e4a3
+  AFSR_VERSION: 2.0.0
+  AFSR_SHA256: bb30be01ff336a8ac7bc204d0623385f5257bb46ffc38a888af553e059acdc0e
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      exists: ${{ steps.version.outputs.exists }}
+    steps:
+      - id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          version="$INPUT_VERSION"
+          if [ -z "$version" ]; then
+            version="$(curl -fsS "https://releases.grapheneos.org/$DEVICE-$CHANNEL" | cut -d' ' -f1)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if gh release view "$version" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  patch:
+    needs: check
+    if: needs.check.outputs.exists == 'false'
+    runs-on: ubuntu-24.04
+    environment: release
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flex
+          mkdir -p "$RUNNER_TEMP/bin"
+          cd "$RUNNER_TEMP"
+          curl -fsSLO "https://github.com/chenxiaolong/avbroot/releases/download/v$AVBROOT_VERSION/avbroot-$AVBROOT_VERSION-x86_64-unknown-linux-gnu.zip"
+          curl -fsSLO "https://github.com/chenxiaolong/afsr/releases/download/v$AFSR_VERSION/afsr-$AFSR_VERSION-x86_64-unknown-linux-gnu.zip"
+          echo "$AVBROOT_SHA256  avbroot-$AVBROOT_VERSION-x86_64-unknown-linux-gnu.zip" | sha256sum -c -
+          echo "$AFSR_SHA256  afsr-$AFSR_VERSION-x86_64-unknown-linux-gnu.zip" | sha256sum -c -
+          unzip -o "avbroot-$AVBROOT_VERSION-x86_64-unknown-linux-gnu.zip" avbroot -d bin
+          unzip -o "afsr-$AFSR_VERSION-x86_64-unknown-linux-gnu.zip" afsr -d bin
+          "$GITHUB_WORKSPACE/scripts/build-secilc.sh" "$VERSION" "$RUNNER_TEMP/bin/secilc"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Download OTA
+        run: curl -fsSLo "$RUNNER_TEMP/input.zip" "https://releases.grapheneos.org/$DEVICE-ota_update-$VERSION.zip"
+
+      - name: Write keys
+        env:
+          AVB_KEY: ${{ secrets.AVB_KEY }}
+          OTA_KEY: ${{ secrets.OTA_KEY }}
+          OTA_CERT: ${{ secrets.OTA_CERT }}
+        run: |
+          mkdir -m 700 "$RUNNER_TEMP/keys"
+          printf '%s\n' "$AVB_KEY" > "$RUNNER_TEMP/keys/avb.key"
+          printf '%s\n' "$OTA_KEY" > "$RUNNER_TEMP/keys/ota.key"
+          printf '%s\n' "$OTA_CERT" > "$RUNNER_TEMP/keys/ota.crt"
+
+      - name: Patch
+        env:
+          KEY_AVB: ${{ runner.temp }}/keys/avb.key
+          KEY_OTA: ${{ runner.temp }}/keys/ota.key
+          CERT_OTA: ${{ runner.temp }}/keys/ota.crt
+          PASSPHRASE_AVB: ${{ secrets.AVB_PASSPHRASE }}
+          PASSPHRASE_OTA: ${{ secrets.OTA_PASSPHRASE }}
+        run: |
+          scripts/patch-ota.sh "$RUNNER_TEMP/input.zip" "$RUNNER_TEMP/$DEVICE-ota_update-$VERSION.zip" "$RUNNER_TEMP/work"
+          rm -rf "$RUNNER_TEMP/keys" "$RUNNER_TEMP/input.zip"
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$VERSION" "$RUNNER_TEMP/$DEVICE-ota_update-$VERSION.zip" \
+            --title "$DEVICE $VERSION" \
+            --notes "GrapheneOS $VERSION for $DEVICE with the Korean VoLTE patch, without Updater, re-signed with custom AVB and OTA keys."

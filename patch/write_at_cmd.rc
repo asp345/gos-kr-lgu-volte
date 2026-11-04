@@ -1,0 +1,10 @@
+service write_at_cmd /vendor/bin/write_at_cmd.sh
+    class main
+    user system
+    group system
+    oneshot
+    disabled
+
+on property:sys.boot_completed=1
+    setprop persist.dbg.volte_avail_ovr 1
+    start write_at_cmd

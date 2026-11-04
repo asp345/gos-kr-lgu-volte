@@ -1,0 +1,25 @@
+
+[[entries]]
+path = "/bin/write_at_cmd.sh"
+file_type = "RegularFile"
+file_mode = "755"
+gid = 2000
+atime = "2009-01-01T00:00:00Z"
+ctime = "2009-01-01T00:00:00Z"
+mtime = "2009-01-01T00:00:00Z"
+crtime = "2009-01-01T00:00:00Z"
+
+[entries.xattrs]
+"security.selinux" = 'u:object_r:write_at_cmd_exec:s0\0'
+
+[[entries]]
+path = "/etc/init/write_at_cmd.rc"
+file_type = "RegularFile"
+file_mode = "644"
+atime = "2009-01-01T00:00:00Z"
+ctime = "2009-01-01T00:00:00Z"
+mtime = "2009-01-01T00:00:00Z"
+crtime = "2009-01-01T00:00:00Z"
+
+[entries.xattrs]
+"security.selinux" = 'u:object_r:vendor_configs_file:s0\0'
