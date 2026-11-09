@@ -5,11 +5,11 @@ input="$(realpath "$1")"
 output="$(realpath -m "$2")"
 work="$3"
 patch_dir="$(realpath "$(dirname "$0")/../patch")"
+keys_dir="$(realpath "$(dirname "$0")/../keys")"
 
-: "${KEY_AVB:?}" "${KEY_OTA:?}" "${CERT_OTA:?}" "${PASSPHRASE_AVB:?}" "${PASSPHRASE_OTA:?}" "${EXPECTED_AVB_KEY_SHA256:?}"
+: "${KEY_AVB:?}" "${KEY_OTA:?}" "${PASSPHRASE_AVB:?}" "${PASSPHRASE_OTA:?}" "${EXPECTED_AVB_KEY_SHA256:?}"
 KEY_AVB="$(realpath "$KEY_AVB")"
 KEY_OTA="$(realpath "$KEY_OTA")"
-CERT_OTA="$(realpath "$CERT_OTA")"
 
 mkdir -p "$work" "$(dirname "$output")"
 cd "$work"
@@ -87,8 +87,7 @@ avbroot ota patch \
     --rootless \
     --key-avb "$KEY_AVB" --pass-avb-env-var PASSPHRASE_AVB \
     --key-ota "$KEY_OTA" --pass-ota-env-var PASSPHRASE_OTA \
-    --cert-ota "$CERT_OTA"
+    --cert-ota "$keys_dir/ota.crt"
 rm -rf vendor system vendor.img system.img
 
-avbroot key encode-avb -k "$KEY_AVB" --pass-env-var PASSPHRASE_AVB -o avb_pkmd.bin
-avbroot ota verify --input "$output" --cert-ota "$CERT_OTA" --public-key-avb avb_pkmd.bin
+avbroot ota verify --input "$output" --cert-ota "$keys_dir/ota.crt" --public-key-avb "$keys_dir/avb_pkmd.bin"

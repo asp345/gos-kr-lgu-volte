@@ -80,18 +80,15 @@ jobs:
         env:
           AVB_KEY: ${{ secrets.AVB_KEY }}
           OTA_KEY: ${{ secrets.OTA_KEY }}
-          OTA_CERT: ${{ secrets.OTA_CERT }}
         run: |
           mkdir -m 700 "$RUNNER_TEMP/keys"
           printf '%s\n' "$AVB_KEY" > "$RUNNER_TEMP/keys/avb.key"
           printf '%s\n' "$OTA_KEY" > "$RUNNER_TEMP/keys/ota.key"
-          printf '%s\n' "$OTA_CERT" > "$RUNNER_TEMP/keys/ota.crt"
 
       - name: Patch
         env:
           KEY_AVB: ${{ runner.temp }}/keys/avb.key
           KEY_OTA: ${{ runner.temp }}/keys/ota.key
-          CERT_OTA: ${{ runner.temp }}/keys/ota.crt
           PASSPHRASE_AVB: ${{ secrets.AVB_PASSPHRASE }}
           PASSPHRASE_OTA: ${{ secrets.OTA_PASSPHRASE }}
         run: |
