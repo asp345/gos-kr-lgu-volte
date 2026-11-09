@@ -17,12 +17,12 @@ concurrency:
 
 env:
   DEVICE: shiba
-  CHANNEL: alpha
+  CHANNEL: alpha-security-preview
   EXPECTED_AVB_KEY_SHA256: cd7479653aa88208f9f03034810ef9b7b0af8a9d41e2000e458ac403a2acb233
   AVBROOT_VERSION: 3.37.1
-  AVBROOT_SHA256: ca8e1e02bc33f5569d5228f312ce1351d0244fecd2d2163cb5a3c1a283a6e4a3
+  AVBROOT_SHA256: d000788f403f2e51df81de5e0e7130559fd68b66e8832e60e344e31d123e69d6
   AFSR_VERSION: 2.0.0
-  AFSR_SHA256: bb30be01ff336a8ac7bc204d0623385f5257bb46ffc38a888af553e059acdc0e
+  AFSR_SHA256: 6a97cbd618cb65c58fedb1cc4ad40d5957cb0e8e2d8c1cf5372ce9b80d4826af
 
 jobs:
   check:
@@ -50,7 +50,7 @@ jobs:
   patch:
     needs: check
     if: needs.check.outputs.exists == 'false'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     environment: release
     permissions:
       contents: write
@@ -63,17 +63,14 @@ jobs:
 
       - name: Install tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y flex
           mkdir -p "$RUNNER_TEMP/bin"
           cd "$RUNNER_TEMP"
-          curl -fsSLO "https://github.com/chenxiaolong/avbroot/releases/download/v$AVBROOT_VERSION/avbroot-$AVBROOT_VERSION-x86_64-unknown-linux-gnu.zip"
-          curl -fsSLO "https://github.com/chenxiaolong/afsr/releases/download/v$AFSR_VERSION/afsr-$AFSR_VERSION-x86_64-unknown-linux-gnu.zip"
-          echo "$AVBROOT_SHA256  avbroot-$AVBROOT_VERSION-x86_64-unknown-linux-gnu.zip" | sha256sum -c -
-          echo "$AFSR_SHA256  afsr-$AFSR_VERSION-x86_64-unknown-linux-gnu.zip" | sha256sum -c -
-          unzip -o "avbroot-$AVBROOT_VERSION-x86_64-unknown-linux-gnu.zip" avbroot -d bin
-          unzip -o "afsr-$AFSR_VERSION-x86_64-unknown-linux-gnu.zip" afsr -d bin
-          "$GITHUB_WORKSPACE/scripts/build-secilc.sh" "$VERSION" "$RUNNER_TEMP/bin/secilc"
+          curl -fsSLO "https://github.com/chenxiaolong/avbroot/releases/download/v$AVBROOT_VERSION/avbroot-$AVBROOT_VERSION-aarch64-unknown-linux-gnu.zip"
+          curl -fsSLO "https://github.com/chenxiaolong/afsr/releases/download/v$AFSR_VERSION/afsr-$AFSR_VERSION-aarch64-unknown-linux-gnu.zip"
+          echo "$AVBROOT_SHA256  avbroot-$AVBROOT_VERSION-aarch64-unknown-linux-gnu.zip" | sha256sum -c -
+          echo "$AFSR_SHA256  afsr-$AFSR_VERSION-aarch64-unknown-linux-gnu.zip" | sha256sum -c -
+          unzip -o "avbroot-$AVBROOT_VERSION-aarch64-unknown-linux-gnu.zip" avbroot -d bin
+          unzip -o "afsr-$AFSR_VERSION-aarch64-unknown-linux-gnu.zip" afsr -d bin
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Download OTA

@@ -38,6 +38,8 @@ E=system_ext/fs_tree/etc/selinux
 P=product/fs_tree/etc/selinux
 V=vendor/fs_tree/etc/selinux
 vers="$(cat "$V/plat_sepolicy_vers.txt")"
+R="$PWD/system/fs_tree/system"
+chmod 755 "$R/bin/bootstrap/linker64" "$R/bin/secilc"
 
 compile_sepolicy() {
     local args=("$S/plat_sepolicy.cil" -m -M true -G -N -c 30 "$S/mapping/$vers.cil" -o "$2" -f /dev/null)
@@ -49,7 +51,7 @@ compile_sepolicy() {
     args+=("$V/plat_pub_versioned.cil" "$1")
     f="$S/plat_sepolicy_genfs_$(cat "$V/genfs_labels_version.txt").cil"
     [ -f "$f" ] && args+=("$f")
-    secilc "${args[@]}"
+    LD_LIBRARY_PATH="$R/lib64/bootstrap" "$R/bin/bootstrap/linker64" "$R/bin/secilc" "${args[@]}"
 }
 
 compile_sepolicy "$V/vendor_sepolicy.cil" sepolicy.orig
